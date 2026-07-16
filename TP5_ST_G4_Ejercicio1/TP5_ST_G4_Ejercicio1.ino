@@ -49,7 +49,7 @@ RealtimeDatabase Database;
 
 unsigned long lastSendTime = 0;
 unsigned long sendInterval = 30000;
-long int millisUltimoCheck = 0;
+long int ultimoCheck = 0;
 
 String uid;
 String databasePath;
@@ -118,12 +118,12 @@ void loop() {
   bool btn1Actual = !digitalRead(SW1);
   bool btn2Actual = !digitalRead(SW2);
 
-  if (millis() - millisUltimoCheck >= 5000) {
+  if (millis() - ultimoCheck >= 5000) {
     float t = dht.readTemperature();
     if (!isnan(t)) {
       temperature = t;
     }
-    millisUltimoCheck = millis();
+    ultimoCheck = millis();
   }
 
   switch (maquinaDeEstado) {
@@ -201,9 +201,9 @@ void loop() {
   }
 
   if (app.ready()) {
-    unsigned long currentTime = millis();
-    if (currentTime - lastSendTime >= sendInterval) {
-      lastSendTime = currentTime;
+    unsigned long tiempoActual = millis();
+    if (tiempoActual - lastSendTime >= sendInterval) {
+      lastSendTime = tiempoActual;
 
       uid = app.getUid().c_str();
       databasePath = "/UsersData/" + uid + "/readings";
