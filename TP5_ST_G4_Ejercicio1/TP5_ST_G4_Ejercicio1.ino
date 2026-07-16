@@ -16,10 +16,10 @@
 #define SW1 34
 #define SW2 35
 
+#define NTP_SERVER = "pool.ntp.org";
+
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 DHT dht(DHTPIN, DHTTYPE);
-
-estados_t maquinaPantalla = RST;
 
 #define WIFI_SSID "Iphone 16 Pro Max THOMAS"
 #define WIFI_PASSWORD "2008714T"
@@ -36,6 +36,8 @@ typedef enum {
   Pantalla2APantalla1
 } estados_t;
 
+estados_t maquinaDeEstado = RST;
+
 void processData(AsyncResult &aResult);
 UserAuth user_auth(Web_API_KEY, USER_EMAIL, USER_PASS);
 
@@ -51,31 +53,35 @@ long int millisUltimoCheck = 0;
 
 String uid;
 String databasePath;
+String parentPath;
 String tempPath = "/temperature";
 String timePath = "/timestamp";
-String parentPath;
 
 int timestamp;
-const char* ntpServer = "pool.ntp.org";
+int getOffset = -3;
 
 float temperature = 0.0;
 
 object_t jsonData, obj1, obj2;
 JsonWriter writer;
 
-bool SW1Presionado = false;
-bool SW2Presionado = false;
+bool btn1presionado = false;
+bool btn2presionado = false;
 
 void initWiFi() {
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  Serial.print("Connecting to WiFi ..");
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.print('.');
-    delay(1000);
-  }
-  Serial.println("\nConectado a WiFi!");
-}
+  int intentos = 0;
 
+  while (WiFi.status() != WL_CONNECTED && intentos < 20) {
+    delay(500);
+    Serial.print(".");
+    intentos++;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi OK");
+  } else {
+    Serial.println("\nSin WiFi");
+  }
+}
 unsigned long getTime() {
   time_t now;
   struct tm timeinfo;
@@ -88,7 +94,7 @@ unsigned long getTime() {
 
 void setup() {
   Serial.begin(115200);
-
+  
   pinMode(SW1, INPUT);
   pinMode(SW2, INPUT);
 
@@ -96,12 +102,12 @@ void setup() {
   u8g2.begin();
 
   initWiFi();
-  configTime(-10800, 0, ntpServer); // GMT-3 (Argentina)
+  configTime(getOffset * 3600, 0, NTP_SERVER);
 
   ssl_client.setInsecure();
   ssl_client.setHandshakeTimeout(5);
 
-  initializeApp(aClient, app, getAuth(user_auth), processData, "🔐 authTask");
+  initializeApp(aClient, app, getAuth(user_auth), processData, "authTask");
   app.getApp<RealtimeDatabase>(Database);
   Database.url(DATABASE_URL);
 }
@@ -109,8 +115,8 @@ void setup() {
 void loop() {
   app.loop();
 
-  bool sw1Activo = !digitalRead(SW1);
-  bool sw2Activo = !digitalRead(SW2);
+  bool btn1Actual = !digitalRead(SW1);
+  bool btn2Actual = !digitalRead(SW2);
 
   if (millis() - millisUltimoCheck >= 5000) {
     float t = dht.readTemperature();
@@ -120,76 +126,76 @@ void loop() {
     millisUltimoCheck = millis();
   }
 
-  switch (maquinaPantalla) {
+  switch (maquinaDeEstado) {
     
     case RST:
-      maquinaPantalla = Pantalla1;
+      maquinaDeEstado = Pantalla1;
       break;
 
     case Pantalla1:
       u8g2.clearBuffer();
-      u8g2.setFont(u8g2_font_ncenB08_tr);
-      u8g2.setCursor(0, 15);
+      u8g2.setFont(u8g2_font_ncenB10_tr);
+      u8g2.setCursor(0, 20);
       u8g2.print("VA : ");
       u8g2.print(temperature);
       u8g2.sendBuffer();
 
-      if (sw1Activo) SW1Presionado = true;
-      if (sw2Activo) SW2Presionado = true;
+      if (btn1actual) btn1presionado = true;
+      if (btn2Actual) btn2presionado = true;
 
-      if (!sw1Activo && SW1Presionado && !sw2Activo) {
-        SW1Presionado = false;
+      if (!btn1actual && btn1presionado && !btn2Actual) {
+        btn1presionado = false;
       }
-      if (!sw2Activo && SW2Presionado && !sw1Activo) {
-        SW2Presionado = false;
+      if (!btn2Actual && btn2presionado && !btn1actual) {
+        btn2presionado = false;
       }
 
-      if (SW1Presionado && SW2Presionado) {
-        SW1Presionado = false;
-        SW2Presionado = false;
-        maquinaPantalla = Pantalla1APantalla2;
+      if (btn1presionado && btn2presionado) {
+        btn1presionado = false;
+        btn2presionado = false;
+        maquinaDeEstado = Pantalla1APantalla2;
       }
       break;
 
     case Pantalla1APantalla2:
-      if (!sw1Activo && !sw2Activo) {
-        maquinaPantalla = Pantalla2;
+      if (!btn1actual && !btn2Actual) {
+        maquinaDeEstado = Pantalla2;
       }
       break;
 
     case Pantalla2:
       u8g2.clearBuffer();
-      u8g2.setFont(u8g2_font_ncenB08_tr);
-      u8g2.setCursor(0, 15);
+      u8g2.setFont(u8g2_font_ncenB10_tr);
+      u8g2.setCursor(0, 20);
       u8g2.print("ciclo: ");
       u8g2.print(sendInterval / 1000);
       u8g2.sendBuffer();
 
-      if (sw1Activo) SW1Presionado = true;
-      if (sw2Activo) SW2Presionado = true;
+      if (btn1actual) btn1presionado = true;
+      if (btn2Actual) btn2presionado = true;
 
-      if (!sw1Activo && SW1Presionado && !sw2Activo) {
+      if (!btn1actual && btn1presionado && !btn2Actual) {
         sendInterval += 30000;
-        SW1Presionado = false;
+        btn1presionado = false;
       }
       
-      if (!sw2Activo && SW2Presionado && !sw1Activo) {
+      if (!btn2Actual && btn2presionado && !btn1actual) {
         if (sendInterval > 30000) {
           sendInterval -= 30000;
         }
-        SW2Presionado = false;
+        btn2presionado = false;
       }
 
-      if (SW1Presionado && SW2Presionado) {
-        SW1Presionado = false;
-        SW2Presionado = false;
-        maquinaPantalla = Pantalla2APantalla1;
+      if (btn1presionado && btn2presionado) {
+        btn1presionado = false;
+        btn2presionado = false;
+        maquinaDeEstado = Pantalla2APantalla1;
       }
       break;
 
     case Pantalla2APantalla1:
-      if (!sw1Activo && !sw2Activo) {
-        maquinaPantalla = Pantalla1;
+      if (!btn1actual && !btn2Actual) {
+        maquinaDeEstado = Pantalla1;
       }
       break;
   }
