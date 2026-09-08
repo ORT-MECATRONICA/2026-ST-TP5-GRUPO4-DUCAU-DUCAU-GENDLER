@@ -21,8 +21,8 @@
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE);
 DHT dht(DHTPIN, DHTTYPE);
 
-#define WIFI_SSID "Iphone 16 Pro Max THOMAS"
-#define WIFI_PASSWORD "2008714T"
+#define WIFI_SSID "MECA-IoT-V2"
+#define WIFI_PASSWORD "IoT2026$"
 #define Web_API_KEY "AIzaSyCP5k_My1tU7bSnTh3cUhSW1K5z5P_Tinw"
 #define DATABASE_URL "https://st-g4-tp5-default-rtdb.firebaseio.com/"
 #define USER_EMAIL "ducauthomas@gmail.com"
